@@ -7,6 +7,7 @@ local VirtualUser = game:GetService("VirtualUser")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
+local Camera = Workspace.CurrentCamera
 
 -- ==========================================
 -- 🛡️ PROTECCIÓN ANTI-KICK
@@ -52,6 +53,24 @@ local carFlying = false
 local flySpeed = 50
 local carFlySpeed = 80
 
+-- Variables Aimbot
+local aimbotEnabled = false
+local aimbotTargetPart = "Head"
+local aimbotFovRadius = 150
+local aimbotSmoothness = 0.2
+local showFovCircle = false
+local aimbotConn, fovCircle
+
+-- Círculo FOV Drawing
+if Drawing then
+    fovCircle = Drawing.new("Circle")
+    fovCircle.Thickness = 1.5
+    fovCircle.Color = Color3.fromRGB(255, 0, 100)
+    fovCircle.Filled = false
+    fovCircle.Transparency = 0.8
+    fovCircle.Visible = false
+end
+
 local sdSettings = {
     vehicleAltSpeed = 220,
     boatAltSpeed = 180,
@@ -82,6 +101,32 @@ UserInputService.InputEnded:Connect(function(input)
         altHeld = false
     end
 end)
+
+-- Función Buscar Enemigo Más Cercano al Cursor/Centro
+local function getClosestPlayerToCursor()
+    local closestPlayer = nil
+    local shortestDistance = aimbotFovRadius
+    local mousePos = UserInputService:GetMouseLocation()
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(aimbotTargetPart) then
+            local hum = player.Character:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health > 0 then
+                local targetPart = player.Character[aimbotTargetPart]
+                local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+
+                if onScreen then
+                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                    if dist < shortestDistance then
+                        shortestDistance = dist
+                        closestPlayer = player
+                    end
+                end
+            end
+        end
+    end
+    return closestPlayer
+end
 
 -- ==========================================
 -- 🇲🇽 1. SAN DIEGO BORDER
@@ -215,8 +260,85 @@ altSpeedConn = RunService.Heartbeat:Connect(function()
 end)
 
 -- ==========================================
--- 🎯 2. COMBATE
+-- 🎯 2. COMBATE (AIMBOT & NO RECOIL)
 -- ==========================================
+combatTab:CreateToggle({
+    name = "Aɪᴍʙᴏᴛ Aᴜᴛᴏᴍᴀ́ᴛɪᴄᴏ",
+    flag = "AimbotToggle",
+    value = false,
+    callback = function(value)
+        aimbotEnabled = value
+        if aimbotEnabled then
+            aimbotConn = RunService.RenderStepped:Connect(function()
+                if showFovCircle and fovCircle then
+                    local mousePos = UserInputService:GetMouseLocation()
+                    fovCircle.Position = mousePos
+                    fovCircle.Radius = aimbotFovRadius
+                    fovCircle.Visible = true
+                elseif fovCircle then
+                    fovCircle.Visible = false
+                end
+
+                local targetPlayer = getClosestPlayerToCursor()
+                if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild(aimbotTargetPart) then
+                    local targetPos = targetPlayer.Character[aimbotTargetPart].Position
+                    local currentCFrame = Camera.CFrame
+                    local targetCFrame = CFrame.new(currentCFrame.Position, targetPos)
+                    Camera.CFrame = currentCFrame:Lerp(targetCFrame, aimbotSmoothness)
+                end
+            end)
+        else
+            if aimbotConn then aimbotConn:Disconnect() aimbotConn = nil end
+            if fovCircle then fovCircle.Visible = false end
+        end
+    end
+})
+
+combatTab:CreateToggle({
+    name = "Mᴏsᴛʀᴀʀ Cɪ́ʀᴄᴜʟᴏ FOV",
+    flag = "ShowFOV",
+    value = false,
+    callback = function(value)
+        showFovCircle = value
+    end
+})
+
+combatTab:CreateSlider({
+    name = "Rᴀᴅɪᴏ ᴅᴇ FOV",
+    range = {50, 500},
+    increment = 10,
+    currentValue = 150,
+    flag = "FovRadius",
+    callback = function(value)
+        aimbotFovRadius = value
+    end,
+})
+
+combatTab:CreateSlider({
+    name = "Sᴜᴀᴠɪᴅᴀᴅ (Sᴍᴏᴏᴛʜɴᴇss)",
+    range = {1, 10},
+    increment = 1,
+    currentValue = 2,
+    flag = "AimSmooth",
+    callback = function(value)
+        aimbotSmoothness = value / 10
+    end,
+})
+
+combatTab:CreateDropdown({
+    name = "Pᴀʀᴛᴇ ᴅᴇ Aᴘᴜɴᴛᴀᴅᴏ",
+    options = {"Cabeza (Head)", "Torso (Root)"},
+    currentOption = {"Cabeza (Head)"},
+    flag = "AimPart",
+    callback = function(option)
+        if option[1] == "Cabeza (Head)" then
+            aimbotTargetPart = "Head"
+        else
+            aimbotTargetPart = "HumanoidRootPart"
+        end
+    end,
+})
+
 combatTab:CreateToggle({
     name = "Sɪɴ Rᴇᴛʀᴏᴄᴇsᴏ (Nᴏ Rᴇᴄᴏɪʟ)",
     flag = "NoRecoil",
