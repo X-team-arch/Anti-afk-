@@ -5,8 +5,23 @@ local LocalPlayer = Players.LocalPlayer
 local VirtualUser = game:GetService("VirtualUser")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
--- Ventana Principal con Guardado de Configuración
+-- Resolver módulos del juego si existen (San Diego Border)
+local function resolveModule(path)
+    local current = ReplicatedStorage
+    for _, name in ipairs(path) do
+        current = current and current:FindFirstChild(name)
+        if not current then return nil end
+    end
+    local ok, module = pcall(require, current)
+    return ok and module or nil
+end
+
+local VehicleUtil = resolveModule({ "SharedModules", "VehicleUtil" })
+
+-- Ventana Principal
 local Window = Rayfield:CreateWindow({
    Name = "UrielAfk",
    Icon = 0,
@@ -28,20 +43,46 @@ local Window = Rayfield:CreateWindow({
 local AFKTab = Window:CreateTab("AFK & Render", 4483362458)
 local ESPTab = Window:CreateTab("Visión & ESP", 4483362458)
 local MovementTab = Window:CreateTab("Movimiento", 4483362458)
-local SanDiegoTab = Window:CreateTab("San Diego", 4483362458)
+local SanDiegoTab = Window:CreateTab("San Diego Border", 4483362458)
 local UtilitiesTab = Window:CreateTab("Utilidades", 4483362458)
 local ConfigTab = Window:CreateTab("Configuración", 4483362458)
 
 -- Variables de Control
-local antiAfkConn, noclipConn, infJumpConn, flyConn, antiCollideConn, vehicleNoclipConn
+local antiAfkConn, noclipConn, infJumpConn, flyConn
+local motorbikeConn, boatAvoidanceConn, antiCollisionConn, altSpeedConn, borderLimitConn
 local flying = false
 local flySpeed = 50
+local altHeld = false
+
 local originalLighting = {
     Brightness = Lighting.Brightness,
     ClockTime = Lighting.ClockTime,
     FogEnd = Lighting.FogEnd,
     GlobalShadows = Lighting.GlobalShadows
 }
+
+-- Valores de la lógica de San Diego
+local sdValues = {
+    vehicleAltSpeed = 200,
+    boatAltSpeed = 175,
+    boatObstacleAvoidance = true,
+    motorbikeStabilizer = false,
+    removeBorderLimit = false,
+    antiPit = false
+}
+
+-- Detección de la tecla Alt (Para velocidad en Alt)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and (input.KeyCode == Enum.KeyCode.LeftAlt or input.KeyCode == Enum.KeyCode.RightAlt) then
+        altHeld = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.LeftAlt or input.KeyCode == Enum.KeyCode.RightAlt then
+        altHeld = false
+    end
+end)
 
 -- ==========================================
 -- 1. AFK & RENDIMIENTO
@@ -55,7 +96,7 @@ AFKTab:CreateToggle({
         RunService:Set3dRenderingEnabled(not Value)
         Rayfield:Notify({
             Title = "3D Rendering", 
-            Content = Value and "Renderizado 3D pausado (Pantalla estática)." or "Renderizado 3D reanudado.", 
+            Content = Value and "Renderizado 3D pausado." or "Renderizado 3D reanudado.", 
             Duration = 3.5
         })
    end,
@@ -87,9 +128,7 @@ AFKTab:CreateSlider({
    CurrentValue = 60,
    Flag = "FPSCapSlider",
    Callback = function(Value)
-        if setfpscap then
-            setfpscap(Value)
-        end
+        if setfpscap then setfpscap(Value) end
    end,
 })
 
@@ -238,49 +277,21 @@ MovementTab:CreateToggle({
 })
 
 -- ==========================================
--- 4. SAN DIEGO BORDER (MÓDULO DE VEHÍCULOS)
+-- 4. SAN DIEGO BORDER (MÓDULO COMPLETO Y TRADUCIDO)
 -- ==========================================
 
 SanDiegoTab:CreateToggle({
-   Name = "Anti-Collision / Anti-PIT (Vehículo)",
+   Name = "Anticolisión de Vehículos (Vehicle Anti-Collision)",
    CurrentValue = false,
-   Flag = "SanDiegoAntiCollide",
+   Flag = "SDVehicleAntiCollision",
    Callback = function(Value)
         if Value then
-            antiCollideConn = RunService.Stepped:Connect(function()
+            antiCollisionConn = RunService.Stepped:Connect(function()
                 local char = LocalPlayer.Character
-                if char and char:FindFirstChildOfClass("Humanoid") and char:FindFirstChildOfClass("Humanoid").SeatPart then
+                if char and char:FindFirstChildOfClass("Humanoid") then
                     local seat = char:FindFirstChildOfClass("Humanoid").SeatPart
-                    local vehicle = seat.Parent
-                    if vehicle then
-                        for _, part in pairs(vehicle:GetDescendants()) do
-                            if part:IsA("BasePart") then
-                                part.CanTouch = false
-                            end
-                        end
-                    end
-                end
-            end)
-            Rayfield:Notify({Title = "San Diego", Content = "Anti-Collision activado.", Duration = 3})
-        else
-            if antiCollideConn then antiCollideConn:Disconnect() antiCollideConn = nil end
-            Rayfield:Notify({Title = "San Diego", Content = "Anti-Collision desactivado.", Duration = 3})
-        end
-   end,
-})
-
-SanDiegoTab:CreateToggle({
-   Name = "Atravesar Paredes con Auto (Vehicle Noclip)",
-   CurrentValue = false,
-   Flag = "SanDiegoNoclip",
-   Callback = function(Value)
-        if Value then
-            vehicleNoclipConn = RunService.Stepped:Connect(function()
-                local char = LocalPlayer.Character
-                if char and char:FindFirstChildOfClass("Humanoid") and char:FindFirstChildOfClass("Humanoid").SeatPart then
-                    local vehicle = char:FindFirstChildOfClass("Humanoid").SeatPart.Parent
-                    if vehicle then
-                        for _, part in pairs(vehicle:GetDescendants()) do
+                    if seat and seat.Parent then
+                        for _, part in pairs(seat.Parent:GetDescendants()) do
                             if part:IsA("BasePart") then
                                 part.CanCollide = false
                             end
@@ -289,25 +300,145 @@ SanDiegoTab:CreateToggle({
                 end
             end)
         else
-            if vehicleNoclipConn then vehicleNoclipConn:Disconnect() vehicleNoclipConn = nil end
+            if antiCollisionConn then antiCollisionConn:Disconnect() antiCollisionConn = nil end
+        end
+   end,
+})
+
+SanDiegoTab:CreateToggle({
+   Name = "Sin Límite en la Frontera (Remove Border Speed Limit)",
+   CurrentValue = false,
+   Flag = "SDRemoveBorderLimit",
+   Callback = function(Value)
+        sdValues.removeBorderLimit = Value
+        if Value then
+            borderLimitConn = RunService.Heartbeat:Connect(function()
+                local borderZones = Workspace:FindFirstChild("BorderZones") or Workspace:FindFirstChild("CustomCheckpoints")
+                if borderZones then
+                    for _, zone in pairs(borderZones:GetChildren()) do
+                        if zone:IsA("BasePart") then zone.CanTouch = false end
+                    end
+                end
+            end)
+        else
+            if borderLimitConn then borderLimitConn:Disconnect() borderLimitConn = nil end
+        end
+   end,
+})
+
+SanDiegoTab:CreateToggle({
+   Name = "Anti PIT (Protección de Empujones)",
+   CurrentValue = false,
+   Flag = "SDAntiPIT",
+   Callback = function(Value)
+        sdValues.antiPit = Value
+   end,
+})
+
+SanDiegoTab:CreateSlider({
+   Name = "Velocidad del Vehículo con Alt (Vehicle Alt Speed)",
+   Range = {50, 500},
+   Increment = 10,
+   Suffix = " Speed",
+   CurrentValue = sdValues.vehicleAltSpeed,
+   Flag = "SDVehicleAltSpeed",
+   Callback = function(Value)
+        sdValues.vehicleAltSpeed = Value
+   end,
+})
+
+SanDiegoTab:CreateSlider({
+   Name = "Velocidad del Barco con Alt (Boat Alt Speed)",
+   Range = {50, 500},
+   Increment = 10,
+   Suffix = " Speed",
+   CurrentValue = sdValues.boatAltSpeed,
+   Flag = "SDBoatAltSpeed",
+   Callback = function(Value)
+        sdValues.boatAltSpeed = Value
+   end,
+})
+
+-- Loop activo para impulsar el auto/barco cuando presiones ALT
+altSpeedConn = RunService.Heartbeat:Connect(function()
+    if altHeld then
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChildOfClass("Humanoid") then
+            local seat = char:FindFirstChildOfClass("Humanoid").SeatPart
+            if seat and seat.Parent then
+                local root = seat.Parent.PrimaryPart or seat
+                local isBoat = seat.Parent:FindFirstChild("IsBoat") or seat.Name:lower():find("boat")
+                local targetSpeed = isBoat and sdValues.boatAltSpeed or sdValues.vehicleAltSpeed
+                root.AssemblyLinearVelocity = root.CFrame.LookVector * targetSpeed
+            end
+        end
+    end
+end)
+
+SanDiegoTab:CreateToggle({
+   Name = "Evasión de Obstáculos del Barco (Boat Avoidance)",
+   CurrentValue = sdValues.boatObstacleAvoidance,
+   Flag = "SDBoatAvoidance",
+   Callback = function(Value)
+        sdValues.boatObstacleAvoidance = Value
+        if Value then
+            boatAvoidanceConn = RunService.Heartbeat:Connect(function()
+                local char = LocalPlayer.Character
+                if char and char:FindFirstChildOfClass("Humanoid") then
+                    local seat = char:FindFirstChildOfClass("Humanoid").SeatPart
+                    if seat and seat.Parent then
+                        local root = seat.Parent.PrimaryPart or seat
+                        local ray = Ray.new(root.Position, root.CFrame.LookVector * 25)
+                        local hit = workspace:FindPartOnRayWithIgnoreList(ray, {char, seat.Parent})
+                        if hit and hit.CanCollide then
+                            root.AssemblyAngularVelocity = Vector3.new(0, 3, 0)
+                        end
+                    end
+                end
+            end)
+        else
+            if boatAvoidanceConn then boatAvoidanceConn:Disconnect() boatAvoidanceConn = nil end
+        end
+   end,
+})
+
+SanDiegoTab:CreateToggle({
+   Name = "Estabilizador de Motocicleta (Motorbike Stabilizer)",
+   CurrentValue = false,
+   Flag = "SDMotorbikeStabilizer",
+   Callback = function(Value)
+        sdValues.motorbikeStabilizer = Value
+        if Value then
+            motorbikeConn = RunService.RenderStepped:Connect(function()
+                local char = LocalPlayer.Character
+                if char and char:FindFirstChildOfClass("Humanoid") then
+                    local seat = char:FindFirstChildOfClass("Humanoid").SeatPart
+                    if seat and seat.Parent then
+                        local root = seat.Parent.PrimaryPart or seat
+                        local rx, ry, rz = root.CFrame:ToOrientation()
+                        root.CFrame = CFrame.new(root.Position) * CFrame.Angles(0, ry, 0)
+                    end
+                end
+            end)
+        else
+            if motorbikeConn then motorbikeConn:Disconnect() motorbikeConn = nil end
         end
    end,
 })
 
 SanDiegoTab:CreateButton({
-   Name = "Voltear Vehículo (Auto-Flip)",
+   Name = "Recuperar Motocicleta (Recover Motorbike)",
    Callback = function()
         local char = LocalPlayer.Character
-        if char and char:FindFirstChildOfClass("Humanoid") and char:FindFirstChildOfClass("Humanoid").SeatPart then
+        if char and char:FindFirstChildOfClass("Humanoid") then
             local seat = char:FindFirstChildOfClass("Humanoid").SeatPart
-            local vehicle = seat.Parent
-            if vehicle then
-                local rootPart = vehicle.PrimaryPart or seat
-                rootPart.CFrame = rootPart.CFrame * CFrame.Angles(0, 0, math.pi)
-                Rayfield:Notify({Title = "San Diego", Content = "Vehículo enderezado.", Duration = 2})
+            if seat and seat.Parent then
+                local root = seat.Parent.PrimaryPart or seat
+                root.CFrame = root.CFrame * CFrame.new(0, 3, 0)
+                Rayfield:Notify({Title = "San Diego", Content = "Motocicleta recuperada.", Duration = 2})
             end
         else
-            Rayfield:Notify({Title = "Error", Content = "Debes estar dentro de un vehículo.", Duration = 3})
+            Rayfield:Notify({Title = "Error", Content = "Debes estar montado en la motocicleta.", Duration = 3})
         end
    end,
 })
