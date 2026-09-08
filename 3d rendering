@@ -1,4 +1,4 @@
-local Maclib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-backups-projects/main/maclib"))()
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/gen2"))()
 
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
@@ -27,22 +27,21 @@ if getrawmetatable and setreadonly then
 end
 
 -- ==========================================
--- Ventana Principal (Maclib Style)
+-- VENTANA PRINCIPAL (GEN 2)
 -- ==========================================
-local Window = Maclib:CreateWindow({
-    Title = "URIEL STUDIO",
-    Subtitle = "San Diego Border — Ultimate Edition",
-    Size = UDim2.fromOffset(560, 340),
-    Dragable = true
+local window = Rayfield:CreateWindow({
+    name = "Uʀɪᴇʟ Sᴛᴜᴅɪᴏ",
+    subtitle = "Sᴀɴ Dɪᴇɢᴏ Bᴏʀᴅᴇʀ — Gᴇɴ 2",
+    sidebarLayout = true
 })
 
--- Pestañas
-local SanDiegoTab = Window:Tab({Name = "San Diego", Icon = "rbxassetid://10723345831"})
-local CombatTab = Window:Tab({Name = "Combate", Icon = "rbxassetid://10723346158"})
-local VehiclesTab = Window:Tab({Name = "Vehículos", Icon = "rbxassetid://10723346376"})
-local MovementTab = Window:Tab({Name = "Movimiento", Icon = "rbxassetid://10723346552"})
-local ESPTab = Window:Tab({Name = "Visión & ESP", Icon = "rbxassetid://10723346741"})
-local AFKTab = Window:Tab({Name = "AFK & GPU", Icon = "rbxassetid://10723346959"})
+-- Pestañas con estilo de letra Uʀɪᴇʟ
+local sdTab = window:CreateTab({ name = "Sᴀɴ Dɪᴇɢᴏ", icon = "car" })
+local combatTab = window:CreateTab({ name = "Cᴏᴍʙᴀᴛᴇ", icon = "crosshair" })
+local vehicleTab = window:CreateTab({ name = "Vᴇʜɪ́ᴄᴜʟᴏs", icon = "gauge" })
+local movementTab = window:CreateTab({ name = "Mᴏᴠɪᴍɪᴇɴᴛᴏ", icon = "user" })
+local espTab = window:CreateTab({ name = "Vɪsɪᴏ́ɴ", icon = "eye" })
+local afkTab = window:CreateTab({ name = "AFK / GPU", icon = "zap" })
 
 -- Variables de Estado
 local altHeld = false
@@ -72,7 +71,6 @@ local function getMyVehicle()
     return nil, nil
 end
 
--- Detección de Tecla ALT
 UserInputService.InputBegan:Connect(function(input, gpe)
     if not gpe and (input.KeyCode == Enum.KeyCode.LeftAlt or input.KeyCode == Enum.KeyCode.RightAlt) then
         altHeld = true
@@ -88,13 +86,12 @@ end)
 -- ==========================================
 -- 🇲🇽 1. SAN DIEGO BORDER
 -- ==========================================
-SanDiegoTab:Section({Name = "Ajustes de Frontera & Auto"})
-
-SanDiegoTab:Toggle({
-    Name = "Anticolisión de Vehículos",
-    Default = false,
-    Callback = function(Value)
-        if Value then
+sdTab:CreateToggle({
+    name = "Aɴᴛɪᴄᴏʟɪsɪᴏ́ɴ ᴅᴇ Vᴇʜɪ́ᴄᴜʟᴏs",
+    flag = "SD_AntiCollision",
+    value = false,
+    callback = function(value)
+        if value then
             antiCollisionConn = RunService.Stepped:Connect(function()
                 local veh = getMyVehicle()
                 if veh then
@@ -109,11 +106,12 @@ SanDiegoTab:Toggle({
     end
 })
 
-SanDiegoTab:Toggle({
-    Name = "Sin Límite de Velocidad en Frontera",
-    Default = false,
-    Callback = function(Value)
-        if Value then
+sdTab:CreateToggle({
+    name = "Sɪɴ Lɪ́ᴍɪᴛᴇ ᴇɴ Fʀᴏɴᴛᴇʀᴀ",
+    flag = "SD_NoBorderLimit",
+    value = false,
+    callback = function(value)
+        if value then
             borderLimitConn = RunService.Heartbeat:Connect(function()
                 for _, obj in pairs(Workspace:GetDescendants()) do
                     if obj.Name:lower():find("border") or obj.Name:lower():find("checkpoint") or obj.Name:lower():find("speedlimit") then
@@ -127,12 +125,13 @@ SanDiegoTab:Toggle({
     end
 })
 
-SanDiegoTab:Toggle({
-    Name = "Anti PIT (Protección de Choques)",
-    Default = false,
-    Callback = function(Value)
-        sdSettings.antiPit = Value
-        if Value then
+sdTab:CreateToggle({
+    name = "Aɴᴛɪ PIT",
+    flag = "SD_AntiPIT",
+    value = false,
+    callback = function(value)
+        sdSettings.antiPit = value
+        if value then
             RunService.Heartbeat:Connect(function()
                 local veh, seat = getMyVehicle()
                 if veh and sdSettings.antiPit then
@@ -144,42 +143,13 @@ SanDiegoTab:Toggle({
     end
 })
 
-SanDiegoTab:Slider({
-    Name = "Velocidad Auto con ALT",
-    Min = 50,
-    Max = 500,
-    Default = 220,
-    Callback = function(Value) sdSettings.vehicleAltSpeed = Value end
-})
-
-SanDiegoTab:Slider({
-    Name = "Velocidad Lancha con ALT",
-    Min = 50,
-    Max = 500,
-    Default = 180,
-    Callback = function(Value) sdSettings.boatAltSpeed = Value end
-})
-
-altSpeedConn = RunService.Heartbeat:Connect(function()
-    if altHeld then
-        local veh, seat = getMyVehicle()
-        if veh and seat then
-            local root = veh.PrimaryPart or seat
-            local isBoat = veh.Name:lower():find("boat") or veh.Name:lower():find("lancha") or seat.Name:lower():find("boat")
-            local speed = isBoat and sdSettings.boatAltSpeed or sdSettings.vehicleAltSpeed
-            root.AssemblyLinearVelocity = root.CFrame.LookVector * speed
-        end
-    end
-end)
-
-SanDiegoTab:Section({Name = "Motos & Barcos"})
-
-SanDiegoTab:Toggle({
-    Name = "Evasión Barco Auto-Pilot",
-    Default = false,
-    Callback = function(Value)
-        sdSettings.boatAvoidance = Value
-        if Value then
+sdTab:CreateToggle({
+    name = "Eᴠᴀsɪᴏ́ɴ Bᴀʀᴄᴏ Aᴜᴛᴏ-Pɪʟᴏᴛ",
+    flag = "SD_BoatAvoid",
+    value = false,
+    callback = function(value)
+        sdSettings.boatAvoidance = value
+        if value then
             boatAvoidanceConn = RunService.Heartbeat:Connect(function()
                 local veh, seat = getMyVehicle()
                 if veh and seat then
@@ -200,12 +170,13 @@ SanDiegoTab:Toggle({
     end
 })
 
-SanDiegoTab:Toggle({
-    Name = "Estabilizador de Moto",
-    Default = false,
-    Callback = function(Value)
-        sdSettings.motorbikeStabilizer = Value
-        if Value then
+sdTab:CreateToggle({
+    name = "E sᴛᴀʙɪʟɪᴢᴀᴅᴏʀ ᴅᴇ Mᴏᴛᴏ",
+    flag = "SD_MotoStab",
+    value = false,
+    callback = function(value)
+        sdSettings.motorbikeStabilizer = value
+        if value then
             motorbikeConn = RunService.RenderStepped:Connect(function()
                 local veh, seat = getMyVehicle()
                 if veh and seat then
@@ -220,9 +191,9 @@ SanDiegoTab:Toggle({
     end
 })
 
-SanDiegoTab:Button({
-    Name = "Enderezar / Voltear Vehículo",
-    Callback = function()
+sdTab:CreateButton({
+    name = "Eɴᴅᴇʀᴇᴢᴀʀ Vᴇʜɪ́ᴄᴜʟᴏ",
+    callback = function()
         local veh, seat = getMyVehicle()
         if veh and seat then
             local root = veh.PrimaryPart or seat
@@ -231,16 +202,27 @@ SanDiegoTab:Button({
     end
 })
 
+altSpeedConn = RunService.Heartbeat:Connect(function()
+    if altHeld then
+        local veh, seat = getMyVehicle()
+        if veh and seat then
+            local root = veh.PrimaryPart or seat
+            local isBoat = veh.Name:lower():find("boat") or veh.Name:lower():find("lancha") or seat.Name:lower():find("boat")
+            local speed = isBoat and sdSettings.boatAltSpeed or sdSettings.vehicleAltSpeed
+            root.AssemblyLinearVelocity = root.CFrame.LookVector * speed
+        end
+    end
+end)
+
 -- ==========================================
 -- 🎯 2. COMBATE
 -- ==========================================
-CombatTab:Section({Name = "Mejoras de Armas"})
-
-CombatTab:Toggle({
-    Name = "Sin Retroceso (No Recoil / Spread)",
-    Default = false,
-    Callback = function(Value)
-        if Value then
+combatTab:CreateToggle({
+    name = "Sɪɴ Rᴇᴛʀᴏᴄᴇsᴏ (Nᴏ Rᴇᴄᴏɪʟ)",
+    flag = "NoRecoil",
+    value = false,
+    callback = function(value)
+        if value then
             noRecoilConn = RunService.Stepped:Connect(function()
                 local char = LocalPlayer.Character
                 if char then
@@ -261,15 +243,14 @@ CombatTab:Toggle({
 })
 
 -- ==========================================
--- 🏎️ 3. VEHÍCULOS
+-- 🏎️ 3. VEHÍCULOS PRO
 -- ==========================================
-VehiclesTab:Section({Name = "Vuelo de Auto"})
-
-VehiclesTab:Toggle({
-    Name = "Vuelo de Auto (Car Fly)",
-    Default = false,
-    Callback = function(Value)
-        carFlying = Value
+vehicleTab:CreateToggle({
+    name = "Vᴜᴇʟᴏ ᴅᴇ Aᴜᴛᴏ (Cᴀʀ Fʟʏ)",
+    flag = "CarFly",
+    value = false,
+    callback = function(value)
+        carFlying = value
         if carFlying then
             carFlyConn = RunService.RenderStepped:Connect(function()
                 local veh, seat = getMyVehicle()
@@ -284,17 +265,9 @@ VehiclesTab:Toggle({
     end
 })
 
-VehiclesTab:Slider({
-    Name = "Velocidad Vuelo Coche",
-    Min = 30,
-    Max = 300,
-    Default = 80,
-    Callback = function(Value) carFlySpeed = Value end
-})
-
-VehiclesTab:Button({
-    Name = "Freno Instantáneo",
-    Callback = function()
+vehicleTab:CreateButton({
+    name = "Fʀᴇɴᴏ Iɴsᴛᴀɴᴛᴀ́ɴᴇᴏ",
+    callback = function()
         local veh, seat = getMyVehicle()
         if veh and seat then
             local root = veh.PrimaryPart or seat
@@ -307,25 +280,12 @@ VehiclesTab:Button({
 -- ==========================================
 -- 🏃 4. MOVIMIENTO
 -- ==========================================
-MovementTab:Section({Name = "Ajustes de Personaje"})
-
-MovementTab:Slider({
-    Name = "Velocidad Caminado",
-    Min = 16,
-    Max = 300,
-    Default = 16,
-    Callback = function(Value)
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-            LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = Value
-        end
-    end
-})
-
-MovementTab:Toggle({
-    Name = "Salto Infinito",
-    Default = false,
-    Callback = function(Value)
-        if Value then
+movementTab:CreateToggle({
+    name = "Sᴀʟᴛᴏ Iɴғɪɴɪᴛᴏ",
+    flag = "InfJump",
+    value = false,
+    callback = function(value)
+        if value then
             infJumpConn = UserInputService.JumpRequest:Connect(function()
                 if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
                     LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
@@ -337,11 +297,12 @@ MovementTab:Toggle({
     end
 })
 
-MovementTab:Toggle({
-    Name = "Noclip",
-    Default = false,
-    Callback = function(Value)
-        if Value then
+movementTab:CreateToggle({
+    name = "Nᴏᴄʟɪᴘ",
+    flag = "Noclip",
+    value = false,
+    callback = function(value)
+        if value then
             noclipConn = RunService.Stepped:Connect(function()
                 if LocalPlayer.Character then
                     for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
@@ -355,11 +316,12 @@ MovementTab:Toggle({
     end
 })
 
-MovementTab:Toggle({
-    Name = "Modo Vuelo (Fly)",
-    Default = false,
-    Callback = function(Value)
-        flying = Value
+movementTab:CreateToggle({
+    name = "Mᴏᴅᴏ Vᴜᴇʟᴏ (Fʟʏ)",
+    flag = "Fly",
+    value = false,
+    callback = function(value)
+        flying = value
         local char = LocalPlayer.Character
         if not char or not char:FindFirstChild("HumanoidRootPart") then return end
         local hrp = char.HumanoidRootPart
@@ -383,18 +345,17 @@ MovementTab:Toggle({
 })
 
 -- ==========================================
--- 👁️ 5. VISIÓN & ESP
+-- 👁️ 5. VISIÓN
 -- ==========================================
-ESPTab:Section({Name = "Visuales"})
-
-ESPTab:Toggle({
-    Name = "ESP Jugadores (Chams)",
-    Default = false,
-    Callback = function(Value)
+espTab:CreateToggle({
+    name = "ESP Jᴜɢᴀᴅᴏʀᴇs (Cʜᴀᴍs)",
+    flag = "PlayerESP",
+    value = false,
+    callback = function(value)
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character then
                 local hl = player.Character:FindFirstChild("UrielHighlight")
-                if Value then
+                if value then
                     if not hl then
                         hl = Instance.new("Highlight")
                         hl.Name = "UrielHighlight"
@@ -410,11 +371,12 @@ ESPTab:Toggle({
     end
 })
 
-ESPTab:Toggle({
-    Name = "Fullbright (Visión Nocturna)",
-    Default = false,
-    Callback = function(Value)
-        if Value then
+espTab:CreateToggle({
+    name = "Fᴜʟʟʙʀɪɢʜᴛ",
+    flag = "Fullbright",
+    value = false,
+    callback = function(value)
+        if value then
             Lighting.Brightness = 3
             Lighting.ClockTime = 12
             Lighting.GlobalShadows = false
@@ -426,21 +388,21 @@ ESPTab:Toggle({
 })
 
 -- ==========================================
--- ⚡ 6. AFK & RENDIMIENTO
+-- ⚡ 6. AFK / RENDIMIENTO
 -- ==========================================
-AFKTab:Section({Name = "Ahorro de Recursos"})
-
-AFKTab:Toggle({
-    Name = "Desactivar Renderizado 3D",
-    Default = false,
-    Callback = function(Value) RunService:Set3dRenderingEnabled(not Value) end
+afkTab:CreateToggle({
+    name = "Dᴇsᴀᴄᴛɪᴠᴀʀ Rᴇɴᴅᴇʀɪᴢᴀᴅᴏ 3D",
+    flag = "Disable3D",
+    value = false,
+    callback = function(value) RunService:Set3dRenderingEnabled(not value) end
 })
 
-AFKTab:Toggle({
-    Name = "Anti-AFK (24/7)",
-    Default = false,
-    Callback = function(Value)
-        if Value then
+afkTab:CreateToggle({
+    name = "Aɴᴛɪ-AFK (24/7)",
+    flag = "AntiAFK",
+    value = false,
+    callback = function(value)
+        if value then
             antiAfkConn = LocalPlayer.Idled:Connect(function()
                 VirtualUser:CaptureController()
                 VirtualUser:ClickButton2(Vector2.new())
@@ -451,9 +413,9 @@ AFKTab:Toggle({
     end
 })
 
-AFKTab:Button({
-    Name = "CPU Booster (Remover Texturas)",
-    Callback = function()
+afkTab:CreateButton({
+    name = "CPU Bᴏᴏsᴛᴇʀ",
+    callback = function()
         for _, obj in pairs(game:GetDescendants()) do
             if obj:IsA("BasePart") then
                 obj.Material = Enum.Material.SmoothPlastic
@@ -462,4 +424,10 @@ AFKTab:Button({
             end
         end
     end
+})
+
+window:Notify({
+    title = "Uʀɪᴇʟ Sᴛᴜᴅɪᴏ",
+    content = "Cᴀʀɢᴀᴅᴏ Cᴏɴ Éxɪᴛᴏ ᴇɴ Rᴀʏғɪᴇʟᴅ Gᴇɴ 2",
+    duration = 3
 })
