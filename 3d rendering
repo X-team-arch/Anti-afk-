@@ -1,0 +1,128 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local VirtualUser = game:GetService("VirtualUser")
+local UserInputService = game:GetService("UserInputService")
+
+-- Crear la Ventana Principal
+local Window = Rayfield:CreateWindow({
+   Name = "Universal AFK & Performance Hub",
+   LoadingTitle = "Cargando Interfaz...",
+   LoadingSubtitle = "por Uriel",
+   ConfigurationSaving = { Enabled = false },
+   Discord = { Enabled = false },
+   KeySystem = false
+})
+
+-- Pestañas de la Interfaz
+local AFKTab = Window:CreateTab("AFK & Rendimiento", 4483362458)
+local PlayerTab = Window:CreateTab("Jugador", 4483362458)
+
+-- Variables de Estado
+local antiAfkConn
+local infiniteJumpConn
+local noclipConn
+
+-- ==========================================
+-- SECCIÓN: AFK & RENDIMIENTO
+-- ==========================================
+
+AFKTab:CreateToggle({
+   Name = "Desactivar 3D Rendering (Ahorro / Rendimiento)",
+   CurrentValue = false,
+   Flag = "Toggle3D",
+   Callback = function(Value)
+        -- Si Value es true, desactiva el renderizado 3D (pantalla estática para ahorro de GPU)
+        RunService:Set3dRenderingEnabled(not Value)
+        
+        if Value then
+            Rayfield:Notify({Title = "3D Rendering Desactivado", Content = "Gráficos 3D pausados para ahorrar batería y GPU.", Duration = 3})
+        else
+            Rayfield:Notify({Title = "3D Rendering Activado", Content = "Gráficos 3D restaurados.", Duration = 3})
+        end
+   end,
+})
+
+AFKTab:CreateToggle({
+   Name = "Anti-AFK (24/7 Sin Desconexión)",
+   CurrentValue = false,
+   Flag = "ToggleAntiAFK",
+   Callback = function(Value)
+        if Value then
+            antiAfkConn = LocalPlayer.Idled:Connect(function()
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton2(Vector2.new())
+            end)
+            Rayfield:Notify({Title = "Anti-AFK Activado", Content = "El contador de 20 min de inactividad se mantendrá reiniciado.", Duration = 3})
+        else
+            if antiAfkConn then
+                antiAfkConn:Disconnect()
+                antiAfkConn = nil
+            end
+            Rayfield:Notify({Title = "Anti-AFK Desactivado", Content = "Protección desactivada.", Duration = 3})
+        end
+   end,
+})
+
+-- ==========================================
+-- SECCIÓN: FUNCIONES EXTRA
+-- ==========================================
+
+PlayerTab:CreateSlider({
+   Name = "Velocidad de Caminado (Speed)",
+   Range = {16, 200},
+   Increment = 1,
+   Suffix = " Studs",
+   CurrentValue = 16,
+   Flag = "SpeedSlider",
+   Callback = function(Value)
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+            LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = Value
+        end
+   end,
+})
+
+PlayerTab:CreateToggle({
+   Name = "Salto Infinito",
+   CurrentValue = false,
+   Flag = "ToggleInfJump",
+   Callback = function(Value)
+        if Value then
+            infiniteJumpConn = UserInputService.JumpRequest:Connect(function()
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+                    LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+                end
+            end)
+        else
+            if infiniteJumpConn then
+                infiniteJumpConn:Disconnect()
+                infiniteJumpConn = nil
+            end
+        end
+   end,
+})
+
+PlayerTab:CreateToggle({
+   Name = "Noclip (Atravesar Paredes)",
+   CurrentValue = false,
+   Flag = "ToggleNoclip",
+   Callback = function(Value)
+        if Value then
+            noclipConn = RunService.Stepped:Connect(function()
+                if LocalPlayer.Character then
+                    for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                        end
+                    end
+                end
+            end)
+        else
+            if noclipConn then
+                noclipConn:Disconnect()
+                noclipConn = nil
+            end
+        end
+   end,
+})
