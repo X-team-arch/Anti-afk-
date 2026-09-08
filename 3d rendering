@@ -10,7 +10,7 @@ local Workspace = game:GetService("Workspace")
 local Camera = Workspace.CurrentCamera
 
 -- ==========================================
--- 🛡️ PROTECCIÓN ANTI-KICK
+-- 🛡️ PROTECCIÓN ANTI-KICK & BYPASS
 -- ==========================================
 if getrawmetatable and setreadonly then
     local gmt = getrawmetatable(game)
@@ -32,52 +32,45 @@ end
 -- ==========================================
 local window = Rayfield:CreateWindow({
     name = "Uʀɪᴇʟ Sᴛᴜᴅɪᴏ",
-    subtitle = "Sᴀɴ Dɪᴇɢᴏ Bᴏʀᴅᴇʀ — Gᴇɴ 2",
+    subtitle = "Mᴜʟᴛɪ-Gᴀᴍᴇ — Gᴇɴ 2",
     sidebarLayout = true
 })
 
--- Pestañas con estilo de letra Uʀɪᴇʟ
+-- Pestañas Generales y Específicas
 local sdTab = window:CreateTab({ name = "Sᴀɴ Dɪᴇɢᴏ", icon = "car" })
+local buildTab = window:CreateTab({ name = "Tᴇʀᴍɪ́ɴᴀʟᴏ!", icon = "hammer" })
 local combatTab = window:CreateTab({ name = "Cᴏᴍʙᴀᴛᴇ", icon = "crosshair" })
 local vehicleTab = window:CreateTab({ name = "Vᴇʜɪ́ᴄᴜʟᴏs", icon = "gauge" })
 local movementTab = window:CreateTab({ name = "Mᴏᴠɪᴍɪᴇɴᴛᴏ", icon = "user" })
 local espTab = window:CreateTab({ name = "Vɪsɪᴏ́ɴ", icon = "eye" })
+local tpTab = window:CreateTab({ name = "Tᴇʟᴇᴘᴏʀᴛs", icon = "map-pin" })
 local afkTab = window:CreateTab({ name = "AFK / GPU", icon = "zap" })
 
 -- Variables de Estado
-local altHeld = false
-local antiCollisionConn, borderLimitConn, boatAvoidanceConn, motorbikeConn, altSpeedConn
-local noclipConn, infJumpConn, flyConn, antiAfkConn, carFlyConn, noRecoilConn
-local flying = false
+local antiCollisionConn, borderBypassConn, antiPitConn, infiniteGasConn
+local autoPlasterConn, autoBricksConn, noclipConn, infJumpConn, antiAfkConn, carFlyConn, noRecoilConn
+local autoPlasterEnabled = false
+local autoBricksEnabled = false
+local workRange = 25
 local carFlying = false
-local flySpeed = 50
-local carFlySpeed = 80
+local carFlySpeed = 100
 
 -- Variables Aimbot
 local aimbotEnabled = false
 local aimbotTargetPart = "Head"
 local aimbotFovRadius = 150
-local aimbotSmoothness = 0.2
+local aimbotSmoothness = 0.3
 local showFovCircle = false
 local aimbotConn, fovCircle
 
--- Círculo FOV Drawing
 if Drawing then
     fovCircle = Drawing.new("Circle")
     fovCircle.Thickness = 1.5
-    fovCircle.Color = Color3.fromRGB(255, 0, 100)
+    fovCircle.Color = Color3.fromRGB(0, 255, 200)
     fovCircle.Filled = false
     fovCircle.Transparency = 0.8
     fovCircle.Visible = false
 end
-
-local sdSettings = {
-    vehicleAltSpeed = 220,
-    boatAltSpeed = 180,
-    antiPit = false,
-    boatAvoidance = false,
-    motorbikeStabilizer = false
-}
 
 local function getMyVehicle()
     local char = LocalPlayer.Character
@@ -90,19 +83,6 @@ local function getMyVehicle()
     return nil, nil
 end
 
-UserInputService.InputBegan:Connect(function(input, gpe)
-    if not gpe and (input.KeyCode == Enum.KeyCode.LeftAlt or input.KeyCode == Enum.KeyCode.RightAlt) then
-        altHeld = true
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.LeftAlt or input.KeyCode == Enum.KeyCode.RightAlt then
-        altHeld = false
-    end
-end)
-
--- Función Buscar Enemigo Más Cercano al Cursor/Centro
 local function getClosestPlayerToCursor()
     local closestPlayer = nil
     local shortestDistance = aimbotFovRadius
@@ -152,115 +132,153 @@ sdTab:CreateToggle({
 })
 
 sdTab:CreateToggle({
-    name = "Sɪɴ Lɪ́ᴍɪᴛᴇ ᴇɴ Fʀᴏɴᴛᴇʀᴀ",
+    name = "Bʏᴘᴀss Fʀᴏɴᴛᴇʀᴀ (Pᴀsᴀ Mᴜʀᴏs/Pᴇᴀᴊᴇs)",
     flag = "SD_NoBorderLimit",
     value = false,
     callback = function(value)
         if value then
-            borderLimitConn = RunService.Heartbeat:Connect(function()
+            borderBypassConn = RunService.Stepped:Connect(function()
                 for _, obj in pairs(Workspace:GetDescendants()) do
-                    if obj.Name:lower():find("border") or obj.Name:lower():find("checkpoint") or obj.Name:lower():find("speedlimit") then
-                        if obj:IsA("BasePart") then obj.CanTouch = false end
+                    if obj:IsA("BasePart") and (obj.Name:lower():find("border") or obj.Name:lower():find("gate") or obj.Name:lower():find("wall") or obj.Name:lower():find("barrera")) then
+                        obj.CanCollide = false
+                        obj.CanTouch = false
                     end
                 end
             end)
         else
-            if borderLimitConn then borderLimitConn:Disconnect() borderLimitConn = nil end
+            if borderBypassConn then borderBypassConn:Disconnect() borderBypassConn = nil end
         end
     end
 })
 
 sdTab:CreateToggle({
-    name = "Aɴᴛɪ PIT",
+    name = "Aɴᴛɪ PIT / Aɴᴛɪ-Vᴏʟᴄᴀᴅᴜʀᴀ",
     flag = "SD_AntiPIT",
     value = false,
     callback = function(value)
-        sdSettings.antiPit = value
         if value then
-            RunService.Heartbeat:Connect(function()
+            antiPitConn = RunService.Heartbeat:Connect(function()
                 local veh, seat = getMyVehicle()
-                if veh and sdSettings.antiPit then
+                if veh and seat then
                     local root = veh.PrimaryPart or seat
-                    if root then root.AssemblyAngularVelocity = Vector3.new(0, root.AssemblyAngularVelocity.Y, 0) end
+                    root.AssemblyAngularVelocity = Vector3.new(0, root.AssemblyAngularVelocity.Y, 0)
                 end
             end)
+        else
+            if antiPitConn then antiPitConn:Disconnect() antiPitConn = nil end
         end
     end
 })
 
 sdTab:CreateToggle({
-    name = "Eᴠᴀsɪᴏ́ɴ Bᴀʀᴄᴏ Aᴜᴛᴏ-Pɪʟᴏᴛ",
-    flag = "SD_BoatAvoid",
+    name = "Gᴀsᴏʟɪɴᴀ Iɴғɪɴɪᴛᴀ",
+    flag = "SD_InfGas",
     value = false,
     callback = function(value)
-        sdSettings.boatAvoidance = value
         if value then
-            boatAvoidanceConn = RunService.Heartbeat:Connect(function()
-                local veh, seat = getMyVehicle()
-                if veh and seat then
-                    local root = veh.PrimaryPart or seat
-                    local rayParams = RaycastParams.new()
-                    rayParams.FilterDescendantsInstances = {veh, LocalPlayer.Character}
-                    rayParams.FilterType = Enum.RaycastFilterType.Exclude
-
-                    local result = Workspace:Raycast(root.Position, root.CFrame.LookVector * 30, rayParams)
-                    if result and result.Instance.CanCollide then
-                        root.AssemblyAngularVelocity = Vector3.new(0, 4, 0)
+            infiniteGasConn = RunService.Heartbeat:Connect(function()
+                local veh = getMyVehicle()
+                if veh then
+                    for _, v in pairs(veh:GetDescendants()) do
+                        if v:IsA("NumberValue") or v:IsA("IntValue") then
+                            if v.Name:lower():find("gas") or v.Name:lower():find("fuel") then
+                                v.Value = 100
+                            end
+                        end
                     end
                 end
             end)
         else
-            if boatAvoidanceConn then boatAvoidanceConn:Disconnect() boatAvoidanceConn = nil end
+            if infiniteGasConn then infiniteGasConn:Disconnect() infiniteGasConn = nil end
         end
     end
 })
 
-sdTab:CreateToggle({
-    name = "E sᴛᴀʙɪʟɪᴢᴀᴅᴏʀ ᴅᴇ Mᴏᴛᴏ",
-    flag = "SD_MotoStab",
+-- ==========================================
+-- 🛠️ 2. TERMÍNALO!
+-- ==========================================
+buildTab:CreateToggle({
+    name = "Aᴜᴛᴏ-Aᴘʟɪᴄᴀᴅᴏʀ / Pɪɴᴛᴀᴅᴏ Rᴀ́ᴘɪᴅᴏ",
+    flag = "AutoPlaster",
     value = false,
     callback = function(value)
-        sdSettings.motorbikeStabilizer = value
-        if value then
-            motorbikeConn = RunService.RenderStepped:Connect(function()
-                local veh, seat = getMyVehicle()
-                if veh and seat then
-                    local root = veh.PrimaryPart or seat
-                    local rx, ry, rz = root.CFrame:ToOrientation()
-                    root.CFrame = CFrame.new(root.Position) * CFrame.Angles(0, ry, 0)
+        autoPlasterEnabled = value
+        if autoPlasterEnabled then
+            autoPlasterConn = RunService.Heartbeat:Connect(function()
+                local char = LocalPlayer.Character
+                if char and char:FindFirstChild("HumanoidRootPart") then
+                    local hrpPos = char.HumanoidRootPart.Position
+                    for _, obj in pairs(Workspace:GetDescendants()) do
+                        if obj:IsA("BasePart") and (obj.Name:lower():find("wall") or obj.Name:lower():find("plaster") or obj.Name:lower():find("paint")) then
+                            if (obj.Position - hrpPos).Magnitude <= workRange then
+                                if obj:FindFirstChildOfClass("ClickDetector") then
+                                    fireclickdetector(obj:FindFirstChildOfClass("ClickDetector"))
+                                end
+                            end
+                        end
+                    end
                 end
             end)
         else
-            if motorbikeConn then motorbikeConn:Disconnect() motorbikeConn = nil end
+            if autoPlasterConn then autoPlasterConn:Disconnect() autoPlasterConn = nil end
         end
     end
 })
 
-sdTab:CreateButton({
-    name = "Eɴᴅᴇʀᴇᴢᴀʀ Vᴇʜɪ́ᴄᴜʟᴏ",
+buildTab:CreateToggle({
+    name = "Aᴜᴛᴏ-Aᴄᴏᴍᴏᴅᴀᴅᴏʀ ᴅᴇ Lᴀᴅʀɪʟʟᴏs",
+    flag = "AutoBricks",
+    value = false,
+    callback = function(value)
+        autoBricksEnabled = value
+        if autoBricksEnabled then
+            autoBricksConn = RunService.Heartbeat:Connect(function()
+                local char = LocalPlayer.Character
+                if char and char:FindFirstChild("HumanoidRootPart") then
+                    local hrpPos = char.HumanoidRootPart.Position
+                    for _, brick in pairs(Workspace:GetDescendants()) do
+                        if brick:IsA("BasePart") and (brick.Name:lower():find("brick") or brick.Name:lower():find("block")) then
+                            if (brick.Position - hrpPos).Magnitude <= workRange then
+                                if brick:FindFirstChildOfClass("ClickDetector") then
+                                    fireclickdetector(brick:FindFirstChildOfClass("ClickDetector"))
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        else
+            if autoBricksConn then autoBricksConn:Disconnect() autoBricksConn = nil end
+        end
+    end
+})
+
+buildTab:CreateSlider({
+    name = "Rᴀɴɢᴏ ᴅᴇ Aᴄᴄɪᴏ́ɴ (Mᴇᴛʀᴏs)",
+    range = {10, 100},
+    increment = 5,
+    currentValue = 25,
+    flag = "WorkRangeVal",
+    callback = function(value) workRange = value end,
+})
+
+buildTab:CreateButton({
+    name = "Tʀᴀᴇʀ Bᴀʟᴅᴇs / Hᴇʀʀᴀᴍɪᴇɴᴛᴀs Cᴇʀᴄᴀɴᴀs",
     callback = function()
-        local veh, seat = getMyVehicle()
-        if veh and seat then
-            local root = veh.PrimaryPart or seat
-            root.CFrame = CFrame.new(root.Position + Vector3.new(0, 4, 0)) * CFrame.Angles(0, math.rad(root.Orientation.Y), 0)
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local hrp = char.HumanoidRootPart
+            for _, item in pairs(Workspace:GetDescendants()) do
+                if item:IsA("BasePart") and (item.Name:lower():find("bucket") or item.Name:lower():find("tool") or item.Name:lower():find("spray")) then
+                    item.CFrame = hrp.CFrame + Vector3.new(0, 2, 0)
+                end
+            end
         end
     end
 })
-
-altSpeedConn = RunService.Heartbeat:Connect(function()
-    if altHeld then
-        local veh, seat = getMyVehicle()
-        if veh and seat then
-            local root = veh.PrimaryPart or seat
-            local isBoat = veh.Name:lower():find("boat") or veh.Name:lower():find("lancha") or seat.Name:lower():find("boat")
-            local speed = isBoat and sdSettings.boatAltSpeed or sdSettings.vehicleAltSpeed
-            root.AssemblyLinearVelocity = root.CFrame.LookVector * speed
-        end
-    end
-end)
 
 -- ==========================================
--- 🎯 2. COMBATE (AIMBOT & NO RECOIL)
+-- 🎯 3. COMBATE (AIMBOT)
 -- ==========================================
 combatTab:CreateToggle({
     name = "Aɪᴍʙᴏᴛ Aᴜᴛᴏᴍᴀ́ᴛɪᴄᴏ",
@@ -271,8 +289,7 @@ combatTab:CreateToggle({
         if aimbotEnabled then
             aimbotConn = RunService.RenderStepped:Connect(function()
                 if showFovCircle and fovCircle then
-                    local mousePos = UserInputService:GetMouseLocation()
-                    fovCircle.Position = mousePos
+                    fovCircle.Position = UserInputService:GetMouseLocation()
                     fovCircle.Radius = aimbotFovRadius
                     fovCircle.Visible = true
                 elseif fovCircle then
@@ -282,9 +299,7 @@ combatTab:CreateToggle({
                 local targetPlayer = getClosestPlayerToCursor()
                 if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild(aimbotTargetPart) then
                     local targetPos = targetPlayer.Character[aimbotTargetPart].Position
-                    local currentCFrame = Camera.CFrame
-                    local targetCFrame = CFrame.new(currentCFrame.Position, targetPos)
-                    Camera.CFrame = currentCFrame:Lerp(targetCFrame, aimbotSmoothness)
+                    Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPos), aimbotSmoothness)
                 end
             end)
         else
@@ -298,9 +313,7 @@ combatTab:CreateToggle({
     name = "Mᴏsᴛʀᴀʀ Cɪ́ʀᴄᴜʟᴏ FOV",
     flag = "ShowFOV",
     value = false,
-    callback = function(value)
-        showFovCircle = value
-    end
+    callback = function(value) showFovCircle = value end
 })
 
 combatTab:CreateSlider({
@@ -309,20 +322,16 @@ combatTab:CreateSlider({
     increment = 10,
     currentValue = 150,
     flag = "FovRadius",
-    callback = function(value)
-        aimbotFovRadius = value
-    end,
+    callback = function(value) aimbotFovRadius = value end,
 })
 
 combatTab:CreateSlider({
     name = "Sᴜᴀᴠɪᴅᴀᴅ (Sᴍᴏᴏᴛʜɴᴇss)",
     range = {1, 10},
     increment = 1,
-    currentValue = 2,
+    currentValue = 3,
     flag = "AimSmooth",
-    callback = function(value)
-        aimbotSmoothness = value / 10
-    end,
+    callback = function(value) aimbotSmoothness = value / 10 end,
 })
 
 combatTab:CreateDropdown({
@@ -331,11 +340,7 @@ combatTab:CreateDropdown({
     currentOption = {"Cabeza (Head)"},
     flag = "AimPart",
     callback = function(option)
-        if option[1] == "Cabeza (Head)" then
-            aimbotTargetPart = "Head"
-        else
-            aimbotTargetPart = "HumanoidRootPart"
-        end
+        aimbotTargetPart = (option[1] == "Cabeza (Head)") and "Head" or "HumanoidRootPart"
     end,
 })
 
@@ -346,9 +351,8 @@ combatTab:CreateToggle({
     callback = function(value)
         if value then
             noRecoilConn = RunService.Stepped:Connect(function()
-                local char = LocalPlayer.Character
-                if char then
-                    local tool = char:FindFirstChildOfClass("Tool")
+                if LocalPlayer.Character then
+                    local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
                     if tool then
                         for _, v in pairs(tool:GetDescendants()) do
                             if v:IsA("Value") and (v.Name:find("Recoil") or v.Name:find("Spread")) then
@@ -365,7 +369,7 @@ combatTab:CreateToggle({
 })
 
 -- ==========================================
--- 🏎️ 3. VEHÍCULOS PRO
+-- 🏎️ 4. VEHÍCULOS PRO
 -- ==========================================
 vehicleTab:CreateToggle({
     name = "Vᴜᴇʟᴏ ᴅᴇ Aᴜᴛᴏ (Cᴀʀ Fʟʏ)",
@@ -378,13 +382,22 @@ vehicleTab:CreateToggle({
                 local veh, seat = getMyVehicle()
                 if veh and seat then
                     local root = veh.PrimaryPart or seat
-                    root.AssemblyLinearVelocity = Workspace.CurrentCamera.CFrame.LookVector * carFlySpeed
+                    root.AssemblyLinearVelocity = Camera.CFrame.LookVector * carFlySpeed
                 end
             end)
         else
             if carFlyConn then carFlyConn:Disconnect() carFlyConn = nil end
         end
     end
+})
+
+vehicleTab:CreateSlider({
+    name = "Vᴇʟᴏᴄɪᴅᴀᴅ ᴅᴇ Vᴜᴇʟᴏ Cᴏᴄʜᴇ",
+    range = {30, 300},
+    increment = 10,
+    currentValue = 100,
+    flag = "CarFlySpeedVal",
+    callback = function(value) carFlySpeed = value end,
 })
 
 vehicleTab:CreateButton({
@@ -400,8 +413,21 @@ vehicleTab:CreateButton({
 })
 
 -- ==========================================
--- 🏃 4. MOVIMIENTO
+-- 🏃 5. MOVIMIENTO
 -- ==========================================
+movementTab:CreateSlider({
+    name = "Vᴇʟᴏᴄɪᴅᴀᴅ ᴅᴇ Cᴀᴍɪɴᴀᴛᴀ",
+    range = {16, 200},
+    increment = 2,
+    currentValue = 16,
+    flag = "WalkSpeedSlider",
+    callback = function(value)
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+            LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = value
+        end
+    end,
+})
+
 movementTab:CreateToggle({
     name = "Sᴀʟᴛᴏ Iɴғɪɴɪᴛᴏ",
     flag = "InfJump",
@@ -420,7 +446,7 @@ movementTab:CreateToggle({
 })
 
 movementTab:CreateToggle({
-    name = "Nᴏᴄʟɪᴘ",
+    name = "Nᴏᴄʟɪᴘ (Aᴛʀᴀᴠᴇsᴀʀ Pᴀʀᴇᴅᴇs)",
     flag = "Noclip",
     value = false,
     callback = function(value)
@@ -438,36 +464,38 @@ movementTab:CreateToggle({
     end
 })
 
-movementTab:CreateToggle({
-    name = "Mᴏᴅᴏ Vᴜᴇʟᴏ (Fʟʏ)",
-    flag = "Fly",
-    value = false,
-    callback = function(value)
-        flying = value
-        local char = LocalPlayer.Character
-        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-        local hrp = char.HumanoidRootPart
-
-        if flying then
-            local bv = Instance.new("BodyVelocity")
-            bv.Name = "UrielFly"
-            bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-            bv.Parent = hrp
-
-            flyConn = RunService.RenderStepped:Connect(function()
-                if flying and hrp:FindFirstChild("UrielFly") then
-                    bv.Velocity = Workspace.CurrentCamera.CFrame.LookVector * flySpeed
-                end
-            end)
+-- ==========================================
+-- 📍 6. TELEPORTS (SAN DIEGO)
+-- ==========================================
+local function teleportTo(cframe)
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local veh = getMyVehicle()
+        if veh then
+            veh:SetPrimaryPartCFrame(cframe)
         else
-            if hrp:FindFirstChild("UrielFly") then hrp.UrielFly:Destroy() end
-            if flyConn then flyConn:Disconnect() flyConn = nil end
+            char.HumanoidRootPart.CFrame = cframe
         end
     end
+end
+
+tpTab:CreateButton({
+    name = "Tᴇʟᴇᴘᴏʀᴛ: Fʀᴏɴᴛᴇʀᴀ Mᴇ́xɪᴄᴏ",
+    callback = function() teleportTo(CFrame.new(150, 10, -500)) end
+})
+
+tpTab:CreateButton({
+    name = "Tᴇʟᴇᴘᴏʀᴛ: Fʀᴏɴᴛᴇʀᴀ USA",
+    callback = function() teleportTo(CFrame.new(150, 10, 500)) end
+})
+
+tpTab:CreateButton({
+    name = "Tᴇʟᴇᴘᴏʀᴛ: Tɪᴇɴᴅᴀ ᴅᴇ Aʀᴍᴀs",
+    callback = function() teleportTo(CFrame.new(-300, 10, 100)) end
 })
 
 -- ==========================================
--- 👁️ 5. VISIÓN
+-- 👁️ 7. VISIÓN
 -- ==========================================
 espTab:CreateToggle({
     name = "ESP Jᴜɢᴀᴅᴏʀᴇs (Cʜᴀᴍs)",
@@ -510,7 +538,7 @@ espTab:CreateToggle({
 })
 
 -- ==========================================
--- ⚡ 6. AFK / RENDIMIENTO
+-- ⚡ 8. AFK / RENDIMIENTO
 -- ==========================================
 afkTab:CreateToggle({
     name = "Dᴇsᴀᴄᴛɪᴠᴀʀ Rᴇɴᴅᴇʀɪᴢᴀᴅᴏ 3D",
@@ -536,7 +564,7 @@ afkTab:CreateToggle({
 })
 
 afkTab:CreateButton({
-    name = "CPU Bᴏᴏsᴛᴇʀ",
+    name = "CPU Bᴏᴏsᴛᴇʀ (Mᴀ́xɪᴍᴏs FPS)",
     callback = function()
         for _, obj in pairs(game:GetDescendants()) do
             if obj:IsA("BasePart") then
@@ -550,6 +578,6 @@ afkTab:CreateButton({
 
 window:Notify({
     title = "Uʀɪᴇʟ Sᴛᴜᴅɪᴏ",
-    content = "Cᴀʀɢᴀᴅᴏ Cᴏɴ Éxɪᴛᴏ ᴇɴ Rᴀʏғɪᴇʟᴅ Gᴇɴ 2",
+    content = "Mᴜʟᴛɪ-Gᴀᴍᴇ Uɴɪғɪᴄᴀᴅᴏ Vᴇʀsɪᴏ́ɴ Cᴏᴍᴘʟᴇᴛᴀ",
     duration = 3
 })
